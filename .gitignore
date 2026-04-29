@@ -1,0 +1,31 @@
+# --- Lingkungan Virtual (Virtual Environment) ---
+# Folder ini berisi library yang diinstall, tidak perlu diupload karena bisa diinstall ulang via requirements.txt
+venv/
+env/
+.env
+
+# --- Dataset (PENTING) ---
+# Dataset berisi ribuan gambar yang sangat berat. Jangan diupload ke GitHub.
+# User lain cukup mendownload dataset sendiri atau kamu beri link di README.
+dataset/
+dataset_kematangan/
+
+# --- Model Machine Learning (.pkl) ---
+# File ini seringkali berukuran besar. 
+# Jika kamu ingin mendeploy ke Streamlit Cloud, hapus tanda '#' di bawah jika file model kecil.
+# Tapi umumnya, file .pkl sebaiknya tidak diupload jika ukurannya >50MB.
+# *.pkl
+
+# --- Python Cache ---
+# File temporary yang dibuat Python saat dijalankan
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- IDE & OS ---
+# Folder setting dari Visual Studio Code atau sistem operasi
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
