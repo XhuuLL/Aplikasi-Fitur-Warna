@@ -7,7 +7,7 @@ import pandas as pd
 from PIL import Image
 
 # Setup Halaman
-st.set_page_config(page_title="Deteksi Kematangan", page_icon="🍌", layout="wide")
+st.set_page_config(page_title="Deteksi Kematangan", page_icon="", layout="wide")
 st.markdown("""
     <style>
         [data-testid="stSidebarNav"] {display: none;}
@@ -30,7 +30,6 @@ with st.sidebar:
         }
     )
 
-# Logika Navigasi
 if selected == "Beranda":
     st.switch_page("main.py")
 elif selected == "Buah":
@@ -38,34 +37,64 @@ elif selected == "Buah":
 elif selected == "Bunga":
     st.switch_page("pages/bunga.py")
 
-# Load model Kematangan
+# --- HEADER & DROPDOWN PILIHAN BUAH ---
+st.title("🎯 Analisis Kematangan Buah")
+st.write("Pilih jenis buah dan unggah foto untuk mengetahui fase kematangannya secara instan.")
+
+pilihan_buah = st.selectbox(
+    "Pilih Komoditas Buah:",
+    ["Pisang", "Tomat"],
+    index=0
+)
+
+# --- LOAD MODEL DINAMIS ---
 @st.cache_resource
-def load_model():
-    return joblib.load("model_kematangan.pkl")
+def load_model(nama_buah):
+    if nama_buah == "Pisang":
+        return joblib.load("model_kematangan.pkl")
+    else:
+        return joblib.load("model_tomat.pkl")
 
 try:
-    model_kematangan = load_model()
+    model_aktif = load_model(pilihan_buah)
 except FileNotFoundError:
-    st.error("File 'model_kematangan.pkl' tidak ditemukan. Jalankan 'python train_kematangan.py' terlebih dahulu.")
+    st.error(f"⚠️ File model untuk '{pilihan_buah}' tidak ditemukan. Pastikan kamu sudah melakukan training!")
     st.stop()
 
-# Fungsi Ekstraksi Fitur (Sama dengan script training)
-def extract_features(img_bgr):
+# --- FUNGSI EKSTRAKSI FITUR (DIPISAH AGAR TIDAK ERROR) ---
+def extract_features_pisang(img_bgr):
+    """Hanya menggunakan HSV (Sesuai model pisang lamamu)"""
     img_resized = cv2.resize(img_bgr, (100, 100))
     img_hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
     hist = cv2.calcHist([img_hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
     cv2.normalize(hist, hist)
     return hist.flatten()
 
-# Header Halaman
-st.title("🍌 Analisis Kematangan Pisang")
-st.write("Sistem mendeteksi tingkat kematangan buah secara otomatis berdasarkan spektrum warna (HSV).")
+def extract_features_tomat(img_bgr):
+    """Menggunakan gabungan HSV + Hu Moments (Sesuai model tomat barumu)"""
+    img_resized = cv2.resize(img_bgr, (100, 100))
+    
+    # Warna
+    img_hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
+    hist = cv2.calcHist([img_hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
+    cv2.normalize(hist, hist, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    color_features = hist.flatten()
+    
+    # Bentuk
+    img_gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    moments = cv2.moments(thresh)
+    hu_moments = cv2.HuMoments(moments).flatten()
+    hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
+    cv2.normalize(hu_moments, hu_moments, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    
+    return np.hstack((color_features, hu_moments))
 
-# Tab Upload & Kamera
+# --- TAB UNGGAH GAMBAR ---
 tab1, tab2 = st.tabs(["Unggah Foto", "Ambil dari Kamera"])
 
 with tab1:
-    uploaded_file = st.file_uploader("Unggah Foto Pisang (JPG/PNG)", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader(f"Unggah Foto {pilihan_buah} (JPG/PNG)", type=["jpg", "jpeg", "png"])
 with tab2:
     camera_file = st.camera_input("Ambil Foto Langsung via Webcam")
 
@@ -76,11 +105,9 @@ if image_source is not None:
     image = Image.open(image_source)
     img_array = np.array(image)
     img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-    
-    # Visualisasi HSV untuk display
     img_hsv_display = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
     
-    # Menampilkan Gambar di Kolom
+    # Menampilkan Gambar
     col1, col2 = st.columns(2)
     with col1:
         st.caption("Citra Asli (RGB)")
@@ -92,28 +119,36 @@ if image_source is not None:
     st.divider()
 
     # Proses Deteksi
-    with st.spinner("Menganalisis tingkat kematangan..."):
-        fitur = extract_features(img_bgr)
-        prediksi = model_kematangan.predict([fitur])[0]
+    with st.spinner(f"Menganalisis kematangan {pilihan_buah}..."):
+        
+        # Eksekusi fitur sesuai buah yang dipilih
+        if pilihan_buah == "Pisang":
+            fitur = extract_features_pisang(img_bgr)
+        else:
+            fitur = extract_features_tomat(img_bgr)
+            
+        prediksi = model_aktif.predict([fitur])[0]
 
-        if prediksi == "Sangat Matang":
-            color_hex = "#22c55e" # Hijau
-            bg_rgba = "rgba(34, 197, 94, 0.15)"
-            border_rgba = "rgba(34, 197, 94, 0.3)"
-        elif prediksi == "Matang":
-            color_hex = "#facc15" # Kuning
-            bg_rgba = "rgba(250, 204, 21, 0.15)"
-            border_rgba = "rgba(250, 204, 21, 0.3)"
-        elif prediksi == "Belum Matang":
-            color_hex = "#ef4444" # Merah
-            bg_rgba = "rgba(239, 68, 68, 0.15)"
-            border_rgba = "rgba(239, 68, 68, 0.3)"
-        else: # Busuk / Rusak
-            color_hex = "#78350f" # Coklat Tua
-            bg_rgba = "rgba(120, 53, 15, 0.15)"
-            border_rgba = "rgba(120, 53, 15, 0.3)"
+        # --- LOGIKA WARNA DINAMIS SESUAI BUAH ---
+        if pilihan_buah == "Pisang":
+            if prediksi == "Sangat Matang":
+                color_hex, bg_rgba, border_rgba = "#22c55e", "rgba(34, 197, 94, 0.15)", "rgba(34, 197, 94, 0.3)" # Hijau
+            elif prediksi == "Matang":
+                color_hex, bg_rgba, border_rgba = "#facc15", "rgba(250, 204, 21, 0.15)", "rgba(250, 204, 21, 0.3)" # Kuning
+            elif prediksi == "Belum Matang":
+                color_hex, bg_rgba, border_rgba = "#ef4444", "rgba(239, 68, 68, 0.15)", "rgba(239, 68, 68, 0.3)" # Merah
+            else: # Busuk / Rusak
+                color_hex, bg_rgba, border_rgba = "#78350f", "rgba(120, 53, 15, 0.15)", "rgba(120, 53, 15, 0.3)" # Coklat
+        
+        elif pilihan_buah == "Tomat":
+            if prediksi == "Mentah":
+                color_hex, bg_rgba, border_rgba = "#22c55e", "rgba(34, 197, 94, 0.15)", "rgba(34, 197, 94, 0.3)" # Hijau
+            elif prediksi == "Setengah Matang":
+                color_hex, bg_rgba, border_rgba = "#f97316", "rgba(249, 115, 22, 0.15)", "rgba(249, 115, 22, 0.3)" # Oranye
+            elif prediksi == "Matang":
+                color_hex, bg_rgba, border_rgba = "#ef4444", "rgba(239, 68, 68, 0.15)", "rgba(239, 68, 68, 0.3)" # Merah
 
-        # Desain Card Custom (Warna Dinamis)
+        # Desain Card Custom
         html_result = f"""
         <div style="
             background: linear-gradient(135deg, {bg_rgba} 0%, rgba(255, 255, 255, 0) 100%);
@@ -126,7 +161,7 @@ if image_source is not None:
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
         ">
             <p style="font-size: 1.1rem; color: #b0b0b0; margin-bottom: 5px; font-family: sans-serif; letter-spacing: 1px;">
-                STATUS KEMATANGAN BUAH
+                STATUS KEMATANGAN {pilihan_buah.upper()}
             </p>
             <h1 style="
                 font-size: 4rem; 
@@ -141,7 +176,7 @@ if image_source is not None:
             </h1>
             <hr style="border: none; border-top: 1px solid {border_rgba}; margin: 20px 0 15px 0;">
             <p style="font-size: 0.95rem; color: #888888; margin: 0; font-family: sans-serif;">
-                <i>Sistem mengevaluasi level Hue dan Saturation untuk menentukan fase kematangan.</i>
+                <i>Sistem mengevaluasi ekstraksi fitur untuk menentukan fase kematangan.</i>
             </p>
         </div>
         """
