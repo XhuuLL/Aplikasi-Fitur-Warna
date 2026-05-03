@@ -1,22 +1,36 @@
 import os
 import cv2
 import joblib
+import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-def extract_color_histogram(image_path):
-    """Mengekstrak fitur warna HSV menjadi array angka (Histogram)"""
+def extract_features(image_path):
+    """Mengekstrak fitur Warna (HSV) + Bentuk (Hu Moments)"""
     image = cv2.imread(image_path)
     if image is None: return None
-    image = cv2.resize(image, (100, 100))
-    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    hist = cv2.calcHist([hsv_image], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
-    cv2.normalize(hist, hist)
-    return hist.flatten()
+    
+    img_resized = cv2.resize(image, (100, 100))
+    img_hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
+    hist = cv2.calcHist([img_hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
+    cv2.normalize(hist, hist, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    color_features = hist.flatten()
+
+    img_gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # Menghitung bentuk geometri
+    moments = cv2.moments(thresh)
+    hu_moments = cv2.HuMoments(moments).flatten()
+    hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
+    cv2.normalize(hu_moments, hu_moments, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    combined_features = np.hstack((color_features, hu_moments))
+    
+    return combined_features
 
 def train_and_save_model(dataset_path, model_name):
-    print(f"\n Memulai training dari folder: {dataset_path}...")
+    print(f"\n🚀 Memulai training dari folder: {dataset_path}...")
     X, y = [], []
     
     if not os.path.exists(dataset_path):
@@ -26,31 +40,28 @@ def train_and_save_model(dataset_path, model_name):
     for folder_name in os.listdir(dataset_path):
         folder_path = os.path.join(dataset_path, folder_name)
         if os.path.isdir(folder_path):
-            print(f"   Mengekstrak data: {folder_name}")
+            print(f"   📂 Mengekstrak data Warna & Bentuk: {folder_name}")
             for image_name in os.listdir(folder_path):
                 image_path = os.path.join(folder_path, image_name)
-                fitur = extract_color_histogram(image_path)
+                fitur = extract_features(image_path)
                 if fitur is not None:
                     X.append(fitur)
                     y.append(folder_name)
 
     if len(X) == 0:
-        print("Tidak ada gambar valid untuk ditraining!")
+        print("Tidak ada gambar valid!")
         return
+        
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Inisialisasi dan latih model KNN
     model = KNeighborsClassifier(n_neighbors=5)
     model.fit(X_train, y_train)
     
-    # Uji akurasi
     akurasi = accuracy_score(y_test, model.predict(X_test))
-    print(f" Training selesai! Akurasi Model: {akurasi * 100:.2f}%")
+    print(f"✨ Training selesai! Akurasi Model dengan Bentuk+Warna: {akurasi * 100:.2f}%")
     
-    # Simpan model
     joblib.dump(model, model_name)
-    print(f" Model berhasil disimpan sebagai {model_name}\n")
+    print(f"💾 Model baru berhasil disimpan sebagai {model_name}\n")
 
 if __name__ == "__main__":
     train_and_save_model("dataset/buah", "model_buah.pkl")
-    train_and_save_model("dataset/flowers", "model_bunga.pkl")

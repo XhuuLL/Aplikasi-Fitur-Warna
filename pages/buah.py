@@ -47,10 +47,25 @@ except FileNotFoundError:
 
 def extract_features(img_bgr):
     img_resized = cv2.resize(img_bgr, (100, 100))
+    
+    # Warna (HSV)
     img_hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
     hist = cv2.calcHist([img_hsv], [0, 1, 2], None, [8, 8, 8], [0, 180, 0, 256, 0, 256])
-    cv2.normalize(hist, hist)
-    return hist.flatten()
+    cv2.normalize(hist, hist, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    color_features = hist.flatten()
+    
+    # Bentuk (Hu Moments)
+    img_gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    moments = cv2.moments(thresh)
+    hu_moments = cv2.HuMoments(moments).flatten()
+    
+    hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
+    cv2.normalize(hu_moments, hu_moments, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+    
+    # Gabungkan
+    combined_features = np.hstack((color_features, hu_moments))
+    return combined_features
 
 st.title("🍎 Identifikasi Jenis Buah")
 st.write("Sistem mendeteksi jenis buah secara otomatis menggunakan ekstraksi fitur warna (HSV).")
