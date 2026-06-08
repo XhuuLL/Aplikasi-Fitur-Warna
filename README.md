@@ -153,8 +153,6 @@ git clone https://github.com/XhuuLL/Aplikasi-Fitur-Warna.git
 cd "Aplikasi Fitur Warna"
 ```
 
-> 📝 **Catatan:** Ganti `https://github.com/XhuuLL/Aplikasi-Fitur-Warna.git` dengan URL repositori GitHub Anda yang sebenarnya.
-
 ---
 
 ### 2. Buat & Aktifkan Virtual Environment
@@ -234,11 +232,7 @@ Perintah ini akan menginstal library berikut secara otomatis:
 | `pillow` | 10.3.0 | Pembacaan file gambar |
 | `scikit-learn` | 1.4.2 | Algoritma Machine Learning (KNN) |
 | `joblib` | 1.4.0 | Serialisasi model `.pkl` |
-
-> 💡 Library `streamlit-option-menu` dan `pandas` juga diperlukan. Jika belum terinstal otomatis, jalankan:
-> ```bash
-> pip install streamlit-option-menu pandas
-> ```
+``
 
 **Verifikasi instalasi berhasil:**
 
