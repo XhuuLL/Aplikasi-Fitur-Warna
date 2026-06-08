@@ -147,13 +147,13 @@ Buka terminal/command prompt, navigasi ke folder tempat Anda ingin menyimpan pro
 
 ```bash
 # Clone repositori dari GitHub
-git clone https://github.com/USERNAME/Aplikasi-Fitur-Warna.git
+git clone https://github.com/XhuuLL/Aplikasi-Fitur-Warna.git
 
 # Masuk ke direktori proyek
 cd "Aplikasi Fitur Warna"
 ```
 
-> 📝 **Catatan:** Ganti `https://github.com/USERNAME/Aplikasi-Fitur-Warna.git` dengan URL repositori GitHub Anda yang sebenarnya.
+> 📝 **Catatan:** Ganti `https://github.com/XhuuLL/Aplikasi-Fitur-Warna.git` dengan URL repositori GitHub Anda yang sebenarnya.
 
 ---
 
@@ -528,7 +528,7 @@ Kemudian coba aktifkan venv kembali.
 
 ```bash
 # 1. Clone & masuk direktori
-git clone https://github.com/USERNAME/Aplikasi-Fitur-Warna.git
+git clone https://github.com/XhuuLL/Aplikasi-Fitur-Warna.git
 cd "Aplikasi Fitur Warna"
 
 # 2. Setup virtual environment
@@ -555,10 +555,6 @@ streamlit run main.py
 ## 👤 Penulis
 
 **Akhmad Fatkhul Arifin**
-
-Program Studi Teknik Informatika | Universitas Muhadi Setiabudi
-
----
 
 <p align="center">
   © 2026 <strong>Vision AI</strong> — Sistem Identifikasi Buah & Bunga Otomatis
